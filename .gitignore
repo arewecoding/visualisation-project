@@ -1,0 +1,21 @@
+# --- R / RStudio Internal Files (Always ignore) ---
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# --- Deployment Configuration ---
+# Contains local deployment settings/tokens. 
+# You deploy manually from RStudio, so this shouldn't be on GitHub.
+rsconnect/
+
+# --- Unused / Scratch Files (From your screenshot) ---
+gtri.R
+proposal_trial.Rmd
+proposal_trial.pdf
+world_data.csv
+world_data_name.csv
+
+# --- Optional: OS Generated Files ---
+.DS_Store
+Thumbs.db
