@@ -2,22 +2,15 @@
 # SECTION 1: LIBRARIES
 # ==============================================================================
 
-# Core Shiny & UI Framework
 library(shiny)          # Main framework
 library(bslib)          # Modern Bootstrap 5 theming
 library(bsicons)        # Icons for value boxes
 library(shinyWidgets)   # Enhanced inputs (Picker, Slider)
-
-# Data Manipulation
 library(dplyr)          # Data filtering and aggregation
-
-# Visualization
 library(ggplot2)        # Static charts
 library(plotly)         # Interactive charts (wraps ggplot2)
 library(DT)             # Interactive Data Tables
-
-# Mapping & Geospatial
-library(leaflet)        # Interactive Maps (Standard & Stable)
+library(leaflet)        # Interactive Maps
 library(rnaturalearth)  # World map geometry
 library(rnaturalearthdata) # Map data
 library(sf)             # Handling spatial data frames
@@ -26,7 +19,7 @@ library(sf)             # Handling spatial data frames
 # SECTION 2: DATA LOADING & PREPARATION
 # ==============================================================================
 
-# Safety Check: Ensure data file exists to prevent crashing on deploy
+# Safety Check
 if(!file.exists("BMW_Car_Sales_Classification.csv")) {
   stop("CRITICAL ERROR: 'BMW_Car_Sales_Classification.csv' not found in project directory.")
 }
@@ -34,26 +27,24 @@ if(!file.exists("BMW_Car_Sales_Classification.csv")) {
 # Load Data
 df <- read.csv("BMW_Car_Sales_Classification.csv")
 
-# Load Map Geometry (Cached for performance)
+# Load Map Geometry
 world_sf <- ne_countries(scale = "medium", returnclass = "sf")
 
 # ==============================================================================
 # SECTION 3: THEME & CUSTOM STYLING
 # ==============================================================================
 
-# Define the "BMW Executive" Theme
 bmw_theme <- bs_theme(
   version = 5,
   preset = "zephyr", 
   primary = "#1C69D4",      # BMW Blue
   "navbar-bg" = "#1C69D4",  # Header Blue
-  "body-bg" = "#f4f6f9",    # Soft Grey Background (reduces eye strain)
-  "card-bg" = "#ffffff",    # White cards for contrast
+  "body-bg" = "#f4f6f9",    # Soft Grey Background
+  "card-bg" = "#ffffff",    
   heading_font = font_google("Source Sans Pro"),
   base_font = font_google("Source Sans Pro")
 )
 
-# Custom CSS for fine-tuning
 custom_css <- "
   .card { 
     border: none; 
@@ -69,7 +60,11 @@ custom_css <- "
     font-size: 0.9rem;
   }
   .value-box-area .card {
-    border-left: 4px solid #1C69D4; /* Blue accent on KPIs */
+    border-left: 4px solid #1C69D4; 
+  }
+  .about-header {
+    color: #1C69D4;
+    font-weight: bold;
   }
 "
 
@@ -93,7 +88,7 @@ ui <- page_sidebar(
     
     # Filter Accordion
     accordion(
-      open = FALSE, # Collapsed to keep UI clean
+      open = "Global Parameters", # Automatically opens this panel
       accordion_panel(
         "Global Parameters",
         icon = bs_icon("sliders"),
@@ -113,15 +108,15 @@ ui <- page_sidebar(
   # --- MAIN CONTENT TABS ---
   navset_card_underline(
     
-    # TAB 1: OVERVIEW
+    # TAB 1: OVERVIEW (NOW FIRST - Loads Default)
     nav_panel("Overview", icon = bs_icon("speedometer2"),
               layout_columns(class = "value-box-area", fill = FALSE,
                              value_box(title = "Total Sales Volume", value = textOutput("kpi_sales_text"), showcase = bs_icon("car-front-fill"), theme = "white"),
                              value_box(title = "Average Selling Price", value = textOutput("kpi_price_text"), showcase = bs_icon("currency-dollar"), theme = "white"),
                              value_box(title = "Transactions", value = textOutput("kpi_vol_text"), showcase = bs_icon("file-earmark-bar-graph"), theme = "white")
               ),
-              uiOutput("overview_dynamic_row_1"), # Map + Pie
-              uiOutput("overview_dynamic_row_2")  # Trends + Models
+              uiOutput("overview_dynamic_row_1"), 
+              uiOutput("overview_dynamic_row_2")
     ),
     
     # TAB 2: TRENDS
@@ -157,6 +152,43 @@ ui <- page_sidebar(
     # TAB 6: DATA
     nav_panel("Data", icon = bs_icon("table"),
               card(DTOutput("raw_table"))
+    ),
+    
+    # TAB 7: ABOUT & INFO (MOVED TO LAST)
+    nav_panel("About & Info", icon = bs_icon("info-circle-fill"),
+              layout_columns(col_widths = c(5, 7),
+                             # Student Details Card
+                             card(
+                               card_header("Project Author Details"),
+                               div(class = "p-3",
+                                   h3(class="about-header", "Rushikesh Vishwasrao"),
+                                   h5("Roll Number: MDS202527"),
+                                   h5("Chennai Mathematical Institute"),
+                                   hr(),
+                                   p(tags$b("GitHub: "), a(href="https://github.com/arewecoding", "github.com/arewecoding", target="_blank")),
+                                   p(tags$b("LinkedIn: "), a(href="https://linkedin.com/in/rushikesh-vishwasrao-b978b9239/", "linkedin.com/in/rushikesh-vishwasrao-b978b9239/", target="_blank")),
+                                   p(tags$b("Email: "), "rushikeshv.mds2025@cmi.ac.in"),
+                                   p("For any queries or issues related to this dashboard, feel free to mail me. 😊")
+                               )
+                             ),
+                             # Guide / Abstract Card
+                             card(
+                               card_header("Dashboard Guide"),
+                               div(class = "p-3",
+                                   h4("Project Overview"),
+                                   p("This dashboard analyzes global sales data for BMW vehicles. It allows users to explore pricing trends, sales volumes across different regions, and the popularity of specific models."),
+                                   br(),
+                                   h5("How to use this dashboard:"),
+                                   tags$ul(
+                                     tags$li(tags$b("Overview: "), "See high-level KPIs and a geospatial heatmap of sales."),
+                                     tags$li(tags$b("Trends: "), "Analyze how sales and prices have changed over the years."),
+                                     tags$li(tags$b("Pricing: "), "Investigate how mileage and sales classification affect price."),
+                                     tags$li(tags$b("Filters: "), "Use the sidebar on the left to slice data by Year, Model, or Region.")
+                                   ),
+                                  p("When using the select tool in the graphs, you can double click to undo the selection.")
+                               )
+                             )
+              )
     )
   )
 )
@@ -201,8 +233,6 @@ server <- function(input, output, session) {
   output$kpi_vol_text <- renderText({ format(nrow(filtered_data()), big.mark=",") })
   
   # --- 5.4 DYNAMIC UI LAYOUTS ---
-  
-  # Row 1: Map & Pie Chart
   output$overview_dynamic_row_1 <- renderUI({
     if(nrow(filtered_data()) == 0) return(card("No data available for this selection."))
     show_pie <- length(unique(filtered_data()$Fuel_Type)) > 1
@@ -219,14 +249,12 @@ server <- function(input, output, session) {
     }
   })
   
-  # Row 2: Trends & Rankings (Smart Hiding)
   output$overview_dynamic_row_2 <- renderUI({
     if(nrow(filtered_data()) == 0) return(NULL)
     n_regions <- length(input$region_filter)
     n_models  <- length(input$model_filter)
     is_single_year <- input$year_filter[1] == input$year_filter[2]
     
-    # Hide if pointless (Single Region & Model OR Single Model & Year)
     if ((n_regions == 1 && n_models == 1) || (n_models == 1 && is_single_year)) return(NULL) 
     
     if (n_models == 1) {
@@ -245,7 +273,7 @@ server <- function(input, output, session) {
   
   # --- 5.5 PLOTTING LOGIC ---
   
-  # >> LEAFLET MAP (Stable & Interactive)
+  # >> LEAFLET MAP
   output$map_leaflet <- renderLeaflet({
     req(nrow(filtered_data()) > 0)
     sales_by_reg <- filtered_data() %>% group_by(Region) %>% summarise(Total=sum(Sales_Volume))
@@ -262,12 +290,11 @@ server <- function(input, output, session) {
       )) %>%
       inner_join(sales_by_reg, by = c("bmw_region" = "Region"))
     
-    # Palette Logic: Handle Single Value Case
     if(nrow(sales_by_reg) == 1 || min(sales_by_reg$Total) == max(sales_by_reg$Total)) {
       map <- leaflet(world_viz) %>%
         addProviderTiles(providers$CartoDB.Positron) %>%
         addPolygons(
-          fillColor = "#1C69D4", # Solid BMW Blue
+          fillColor = "#1C69D4", 
           weight = 1, opacity = 1, color = "white", dashArray = "3", fillOpacity = 0.8,
           label = ~paste0(bmw_region, ": ", format(Total, big.mark=","), " units")
         )
@@ -299,7 +326,9 @@ server <- function(input, output, session) {
   output$overview_trend <- renderPlotly({
     d <- filtered_data() %>% group_by(Year) %>% summarise(Sales=sum(Sales_Volume))
     p <- ggplot(d, aes(x=Year, y=Sales)) + 
-      geom_bar(stat="identity", fill="#1C69D4", alpha=0.9) + theme_minimal() + labs(x="", y="")
+      geom_bar(stat="identity", fill="#1C69D4", alpha=0.9) + 
+      theme_minimal() + 
+      labs(x="Year", y="Total Sales") 
     ggplotly(p)
   })
   
@@ -309,51 +338,71 @@ server <- function(input, output, session) {
     top_n <- if(is_single_year) 15 else 5
     d <- filtered_data() %>% group_by(Model) %>% summarise(Vol = sum(Sales_Volume)) %>% arrange(desc(Vol)) %>% head(top_n)
     p <- ggplot(d, aes(x=reorder(Model, Vol), y=Vol)) + 
-      geom_bar(stat="identity", fill="#1C69D4") + coord_flip() + theme_minimal() + labs(x="", y="")
+      geom_bar(stat="identity", fill="#1C69D4") + coord_flip() + 
+      theme_minimal() + 
+      labs(x="Car Model", y="Sales Volume")
     ggplotly(p)
   })
   
   # >> TREND LINES
   output$trend_line_total <- renderPlotly({
     d <- filtered_data() %>% group_by(Year) %>% summarise(Sales=sum(Sales_Volume))
-    p <- ggplot(d, aes(x=Year, y=Sales)) + geom_line(color="#1C69D4", size=1) + geom_point(color="#1C69D4") + theme_minimal() + labs(x="Year", y="Sales")
+    p <- ggplot(d, aes(x=Year, y=Sales)) + geom_line(color="#1C69D4", size=1) + geom_point(color="#1C69D4") + 
+      theme_minimal() + 
+      labs(x="Year", y="Total Sales Volume")
     ggplotly(p)
   })
   
   output$trend_price_avg <- renderPlotly({
     d <- filtered_data() %>% group_by(Year) %>% summarise(Price=mean(Price_USD))
-    p <- ggplot(d, aes(x=Year, y=Price)) + geom_line(color="#666666", size=1) + theme_minimal() + labs(x="Year", y="Price ($)")
+    p <- ggplot(d, aes(x=Year, y=Price)) + geom_line(color="#666666", size=1) + 
+      theme_minimal() + 
+      labs(x="Year", y="Average Price (USD)")
     ggplotly(p)
   })
   
   # >> PRICE CHARTS
   output$price_hist <- renderPlotly({
-    p <- ggplot(filtered_data(), aes(x=Price_USD)) + geom_histogram(fill="#1C69D4", color="white", bins=30) + theme_minimal() + labs(x="Price ($)")
+    p <- ggplot(filtered_data(), aes(x=Price_USD)) + 
+      geom_histogram(fill="#1C69D4", color="white", bins=30) + 
+      theme_minimal() + 
+      labs(x="Price (USD)", y="Frequency")
     ggplotly(p)
   })
   
   output$price_scatter <- renderPlotly({
     d <- filtered_data()
     if(nrow(d)>1000) d <- sample_n(d, 1000)
-    p <- ggplot(d, aes(x=Mileage_KM, y=Price_USD, color=Sales_Classification)) + geom_point(alpha=0.6) + theme_minimal() + scale_color_manual(values=c("High"="#1C69D4", "Medium"="#666666", "Low"="#cccccc"))
+    p <- ggplot(d, aes(x=Mileage_KM, y=Price_USD, color=Sales_Classification)) + 
+      geom_point(alpha=0.6) + theme_minimal() + 
+      scale_color_manual(values=c("High"="#1C69D4", "Medium"="#666666", "Low"="#cccccc")) +
+      labs(x = "Mileage (KM)", y = "Price (USD)", color = "Sales Class")
     ggplotly(p)
   })
   
   output$price_box <- renderPlotly({
-    p <- ggplot(filtered_data(), aes(x=Sales_Classification, y=Price_USD, fill=Sales_Classification)) + geom_boxplot() + theme_minimal() + theme(legend.position="none") + scale_fill_manual(values=c("High"="#1C69D4", "Medium"="#666666", "Low"="#cccccc"))
+    p <- ggplot(filtered_data(), aes(x=Sales_Classification, y=Price_USD, fill=Sales_Classification)) + 
+      geom_boxplot() + theme_minimal() + theme(legend.position="none") + 
+      scale_fill_manual(values=c("High"="#1C69D4", "Medium"="#666666", "Low"="#cccccc")) +
+      labs(x = "Sales Classification", y = "Price (USD)")
     ggplotly(p)
   })
   
   # >> SALES BREAKDOWN CHARTS
   output$sales_line_fuel <- renderPlotly({
     d <- filtered_data() %>% group_by(Year, Fuel_Type) %>% summarise(Vol=sum(Sales_Volume))
-    p <- ggplot(d, aes(x=Year, y=Vol, color=Fuel_Type)) + geom_line(size=1) + theme_minimal()
+    p <- ggplot(d, aes(x=Year, y=Vol, color=Fuel_Type)) + geom_line(size=1) + 
+      theme_minimal() +
+      labs(x="Year", y="Sales Volume", color="Fuel Type")
     ggplotly(p)
   })
   
   output$sales_bar_model <- renderPlotly({
     d <- filtered_data() %>% group_by(Model) %>% summarise(Vol=sum(Sales_Volume)) %>% arrange(desc(Vol)) %>% head(10)
-    p <- ggplot(d, aes(x=reorder(Model, Vol), y=Vol)) + geom_bar(stat="identity", fill="#1C69D4") + coord_flip() + theme_minimal() + labs(x="", y="Sales")
+    p <- ggplot(d, aes(x=reorder(Model, Vol), y=Vol)) + 
+      geom_bar(stat="identity", fill="#1C69D4") + coord_flip() + 
+      theme_minimal() + 
+      labs(x="Car Model", y="Sales Volume")
     ggplotly(p)
   })
   
@@ -361,13 +410,19 @@ server <- function(input, output, session) {
   output$bubble_chart <- renderPlotly({
     d <- filtered_data()
     if(nrow(d)>500) d <- sample_n(d, 500)
-    p <- ggplot(d, aes(x=Engine_Size_L, y=Price_USD, size=Mileage_KM, color=Fuel_Type)) + geom_point(alpha=0.6) + theme_minimal() + labs(x="Engine", y="Price")
+    p <- ggplot(d, aes(x=Engine_Size_L, y=Price_USD, size=Mileage_KM, color=Fuel_Type)) + 
+      geom_point(alpha=0.6) + theme_minimal() + 
+      labs(x="Engine Size (L)", y="Price (USD)", size="Mileage (KM)", color="Fuel Type")
     ggplotly(p)
   })
   
   # >> DATA TABLE
   output$raw_table <- renderDT({
-    datatable(filtered_data(), options=list(pageLength=10, scrollX=T))
+    datatable(filtered_data(), 
+              colnames = c("Model", "Year", "Region", "Color", "Fuel Type", "Transmission", 
+                           "Engine Size (L)", "Mileage (KM)", "Price (USD)", 
+                           "Sales Volume", "Classification"),
+              options=list(pageLength=10, scrollX=T))
   })
 }
 
